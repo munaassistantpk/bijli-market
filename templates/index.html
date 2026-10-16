@@ -10,6 +10,16 @@
 {% endif %}
 
 {% if not cat and not q %}
+{% if story_users %}
+<div class="story-strip">
+  {% for su in story_users %}
+  <a class="story-av" href="{{ url_for('stories') }}" title="{{ su['name'] }}">
+    {% if su['logo'] %}<img src="{{ url_for('static', filename='uploads/' + su['logo']) }}">{% else %}<span>{{ su['name'][0] }}</span>{% endif %}
+  </a>
+  {% endfor %}
+  <a class="story-av add" href="{{ url_for('stories') }}" title="Story lagayen">＋</a>
+</div>
+{% endif %}
 <div class="market">
   <h2>📊 Market Summary</h2>
   <div class="mstats">
@@ -33,7 +43,7 @@
     <div class="mood-bar"><div class="mood-fill" style="width:{{ mood.score }}%"></div></div>
     <div class="muted">{{ mood.label }}</div>
   </div>
-  <div class="actions" style="margin-top:10px"><a class="btn small" href="{{ url_for('brands') }}">🏷️ Brands dekhen</a></div>
+  <div class="actions" style="margin-top:10px"><a class="btn small" href="{{ url_for('brands') }}">🏷️ Brands dekhen</a> <a class="btn small" href="{{ url_for('nearby') }}">📍 Qareebi Sellers</a> <a class="btn small" href="{{ url_for('stories') }}">📖 Stories</a> <a class="btn small" href="{{ url_for('verify') }}">🔍 Asli/Nakli Check</a> <a class="btn small" href="{{ url_for('analytics') }}">📈 Analytics</a></div>
 </div>
 
 {% if events %}

@@ -3,17 +3,31 @@
 {% block content %}
 <a class="back" href="{{ url_for('index') }}">← Wapas</a>
 <div class="profile">
+  {% if u['cover'] %}<div class="cover" style="background-image:url({{ url_for('static', filename='uploads/' + u['cover']) }})"></div>{% endif %}
   <div class="phead">
+    {% if u['logo'] %}
+    <img class="avatar-img" src="{{ url_for('static', filename='uploads/' + u['logo']) }}" alt="logo">
+    {% else %}
     <div class="avatar">{{ u['name'][0] }}</div>
+    {% endif %}
     <div>
       <h1>{{ u['name'] }} {% if st.verified %}<span class="vbadge">✓ Verified</span>{% endif %}</h1>
       <div class="muted">📍 {{ u['city'] or 'Pakistan' }} · {{ u['created'][:10] }} se member</div>
       <div class="prating"><span class="stars">{{ stars(st.avg) }}</span> <b>{{ st.avg }}</b> ({{ st.count }} reviews)</div>
+      <div class="trustrow">
+        <span class="trust">🛡️ Trust {{ st.trust }}%</span>
+        <span class="muted">👥 {{ st.followers }} followers · {{ st.deals_done }} deals</span>
+      </div>
     </div>
   </div>
   {% if u['bio'] %}<p class="pbio">{{ u['bio'] }}</p>{% endif %}
   {% if me and me['id'] != u['id'] %}
-  <div class="actions"><a class="btn-chat" href="{{ url_for('chat_thread', other_uid=u['id']) }}">💬 Chat karen</a></div>
+  <div class="actions">
+    <a class="btn-chat" href="{{ url_for('chat_thread', other_uid=u['id']) }}">💬 Chat karen</a>
+    <form action="{{ url_for('follow', uid=u['id']) }}" method="post">
+      <button class="btn small">{{ '✓ Following' if is_following else '＋ Follow' }}</button>
+    </form>
+  </div>
   {% endif %}
 </div>
 

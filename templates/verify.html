@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Asli / Naqli Check — BijliMarket{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← Wapas</a>
+<h1 class="pagetitle">🔍 Asli / Naqli Check</h1>
+<p class="muted">Product ka serial number likhen ya scan karen.</p>
+<form class="searchbar" method="post">
+  <input name="serial" id="serialin" placeholder="Serial number…" value="{{ serial }}" autocomplete="off">
+  <button type="submit">🔍</button>
+</form>
+<p><button class="btn small" id="scanbtn" type="button">📷 Scan karen</button></p>
+<video id="cam" style="display:none;width:100%;border-radius:12px" playsinline></video>
+{% if result %}
+  <div class="notice ok">✅ <b>ASLI</b> — {{ result['product'] }}{% if result['brand'] %} ({{ result['brand'] }}){% endif %}<br><span class="muted">Seller: {{ result['uname'] }} · {{ result['created'][:10] }}</span></div>
+{% elif result is not none %}
+  <div class="notice bad">⚠️ Yeh serial hamare record me nahi — ehtiyat karen!</div>
+{% endif %}
+<script>
+document.getElementById('scanbtn').onclick=function(){
+  var v=document.getElementById('cam');
+  if(!('BarcodeDetector' in window)){ alert('Aap ka browser scan support nahi karta — serial likh den.'); return; }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(function(st){
+    v.style.display='block'; v.srcObject=st; v.play();
+    var det=new BarcodeDetector({formats:['qr_code','code_128','ean_13','code_39']});
+    var iv=setInterval(function(){
+      det.detect(v).then(function(codes){
+        if(codes.length){ clearInterval(iv); st.getTracks().forEach(function(t){t.stop(); }); v.style.display='none';
+          document.getElementById('serialin').value=codes[0].rawValue; }
+      }).catch(function(){});
+    },500);
+  }).catch(function(){ alert('Camera ki ijazat den 📷'); });
+};
+</script>
+{% endblock %}

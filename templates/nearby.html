@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Qareebi Sellers — BijliMarket{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← Wapas</a>
+<h1 class="pagetitle">📍 Qareebi Sellers</h1>
+{% if me and not has_loc %}
+<div class="notice">Apni location set karen taake faasla nazar aaye:
+<button class="btn small" id="locbtn" type="button">📍 Location Set Karen</button></div>
+<script>
+document.getElementById('locbtn').onclick=function(){
+  if(!navigator.geolocation){ alert('Location supported nahi'); return; }
+  navigator.geolocation.getCurrentPosition(function(p){
+    var f=document.createElement('form'); f.method='post'; f.action="{{ url_for('set_location') }}";
+    f.innerHTML='<input name="lat" value="'+p.coords.latitude+'"><input name="lng" value="'+p.coords.longitude+'">';
+    document.body.appendChild(f); f.submit();
+  }, function(){ alert('Location ki ijazat den 📍'); });
+};
+</script>
+{% endif %}
+<div class="cards">
+{% for s in sellers %}
+  <a class="card" href="{{ url_for('seller_profile', uid=s['id']) }}">
+    <div class="card-title">🏪 {{ s['name'] }} {% if s['is_verified'] %}<span class="vbadge">✓</span>{% endif %}</div>
+    <div class="card-bot">
+      <span class="muted">📍 {{ s['city'] or 'Pakistan' }}</span>
+      {% if dists.get(s['id']) is not none %}<span class="price">{{ dists[s['id']] }} km</span>{% endif %}
+    </div>
+    <div class="muted">{{ s['nlist'] }} listings</div>
+  </a>
+{% else %}
+  <div class="empty">Abhi kisi seller ne location set nahi ki.</div>
+{% endfor %}
+</div>
+{% endblock %}

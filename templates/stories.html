@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Stories — BijliMarket{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← Wapas</a>
+<h1 class="pagetitle">📖 Stories</h1>
+<p class="muted">24 ghante ke liye — apni dukan ki nayi cheez dikhao.</p>
+{% if me %}
+<form class="storyform" action="{{ url_for('story_new') }}" method="post" enctype="multipart/form-data">
+  <input type="file" name="image" accept="image/*" required>
+  <input name="caption" placeholder="Caption (optional)" maxlength="200">
+  <button class="btn small" type="submit">Lagayen ➕</button>
+</form>
+{% else %}
+<p><a class="btn small" href="{{ url_for('login') }}">Login karke story lagayen</a></p>
+{% endif %}
+<div class="cards">
+{% for s in rows %}
+  <div class="card">
+    <img class="story-img" src="{{ url_for('static', filename='uploads/' + s['image']) }}" alt="story">
+    {% if s['caption'] %}<div class="card-detail">{{ s['caption'] }}</div>{% endif %}
+    <div class="card-bot"><span class="seller">🏪 {{ s['uname'] }}</span><span class="muted">{{ s['created'][11:16] }}</span></div>
+  </div>
+{% else %}
+  <div class="empty">Abhi koi story nahi. Pehli lagayen! 📸</div>
+{% endfor %}
+</div>
+{% endblock %}

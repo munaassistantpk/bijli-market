@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Market Analytics — BijliMarket{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← Wapas</a>
+<h1 class="pagetitle">📈 Market Analytics</h1>
+
+{% if gainers %}
+<h2 class="sect">🔥 Sab se zyada barhne wale</h2>
+<div class="cards">
+{% for r in gainers %}
+  <div class="card"><div class="card-title">{{ r['cat'] }}</div>
+  <div class="card-bot"><span class="price">Rs {{ "{:,}".format(r['floor']) }}</span><span class="up">▲ {{ r['chg'] }}%</span></div></div>
+{% endfor %}
+</div>
+{% endif %}
+
+{% if losers %}
+<h2 class="sect">📉 Sab se zyada girne wale</h2>
+<div class="cards">
+{% for r in losers %}
+  <div class="card"><div class="card-title">{{ r['cat'] }}</div>
+  <div class="card-bot"><span class="price">Rs {{ "{:,}".format(r['floor']) }}</span><span class="down">▼ {{ r['chg'] }}%</span></div></div>
+{% endfor %}
+</div>
+{% endif %}
+
+<h2 class="sect">🗺️ Heatmap</h2>
+<div class="heatmap">
+{% for r in rows %}
+  <a class="heat {{ 'h-up' if r['chg']>0 else 'h-down' if r['chg']<0 else 'h-flat' }}" href="{{ url_for('index', cat=r['cat']) }}">
+    <b>{{ r['cat'].split(' ')[0] }}</b><span>{{ '%+.1f'|format(r['chg']) }}%</span>
+  </a>
+{% endfor %}
+</div>
+
+<h2 class="sect">🔮 Kal ka Takmeena</h2>
+<p class="muted">Seedhi lakeer ka hisab — AI nahi, sirf rujhan ka andaza.</p>
+<div class="cards">
+{% for r in rows if r['fc'] is not none %}
+  <div class="card"><div class="card-title">{{ r['cat'] }}</div>
+  <div class="card-bot"><span class="muted">Aaj: Rs {{ "{:,}".format(r['floor']) }}</span>
+  <span class="{{ 'up' if r['fdir']=='up' else 'down' if r['fdir']=='down' else 'flat' }}">
+    {{ '▲' if r['fdir']=='up' else '▼' if r['fdir']=='down' else '━' }} Rs {{ "{:,}".format(r['fc']) }}</span></div></div>
+{% endfor %}
+</div>
+{% endblock %}

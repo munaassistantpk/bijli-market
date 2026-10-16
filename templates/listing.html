@@ -22,10 +22,18 @@
   </div>
   <div class="actions">
     <a class="btn-chat" href="{{ url_for('chat_start', lid=item['id']) }}">💬 Seller se Chat</a>
+    <button class="btn small" id="sharebtn" type="button">↗️ Share</button>
     <form action="{{ url_for('favorite', lid=item['id']) }}" method="post">
       <button class="btn-fav">{{ '❤️ Saved' if is_fav else '🤍 Save' }}</button>
     </form>
   </div>
+<script>
+document.getElementById('sharebtn').onclick=function(){
+  var data={title:"{{ item['title']|e }} — Rs {{ item['price'] }}", text:"BijliMarket par dekhen:", url:location.href};
+  if(navigator.share){ navigator.share(data).catch(function(){}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(location.href).then(function(){ alert('Link copy ho gaya! 📋'); }); }
+};
+</script>
   {% if me and item['seller_uid'] != me['id'] %}
   <form class="dealform" action="{{ url_for('deal_propose', lid=item['id']) }}" method="post">
     <b>🤝 Deal offer karen:</b>

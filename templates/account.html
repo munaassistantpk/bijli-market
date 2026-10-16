@@ -4,16 +4,39 @@
 <h1 class="pagetitle">👤 {{ me['name'] }}</h1>
 <p class="muted">📞 {{ me['phone'] }}{% if me['city'] %} · 📍 {{ me['city'] }}{% endif %}</p>
 <p><span class="stars">{{ stars(st.avg) }}</span> <b>{{ st.avg }}</b> ({{ st.count }} reviews){% if st.verified %} <span class="vbadge">✓ Verified</span>{% endif %}</p>
-<form class="bioform" method="post">
+<form class="bioform" method="post" enctype="multipart/form-data">
   <input name="city" placeholder="Shehar" value="{{ me['city'] or '' }}" maxlength="60">
   <input name="bio" placeholder="Apne bare me likhen (dukan ka taaruf)…" value="{{ me['bio'] or '' }}" maxlength="300">
+  <label class="muted">Logo: <input type="file" name="logo" accept="image/*"></label>
+  <label class="muted">Cover: <input type="file" name="cover" accept="image/*"></label>
   <button class="btn small" type="submit">Save</button>
 </form>
 <div class="actions">
   <a class="btn small" href="{{ url_for('favorites') }}">❤️ Meri Favorites</a>
   <a class="btn small" href="{{ url_for('deals') }}">🤝 Meri Deals</a>
+  <button class="btn small" id="pushbtn" type="button">🔔 Notifications: <span id="pushstate">…</span></button>
   <a class="btn small" href="{{ url_for('logout') }}">Logout</a>
 </div>
+<script>
+(function(){
+  var b=document.getElementById('pushbtn'), st=document.getElementById('pushstate');
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){ st.textContent='N/A'; b.disabled=true; return; }
+  function urlB64(s){ var p='='.repeat((4-s.length%4)%4); return Uint8Array.from(atob((s+p).replace(/-/g,'+').replace(/_/g,'/')), function(c){return c.charCodeAt(0);}); }
+  navigator.serviceWorker.register('/static/sw.js').then(function(reg){
+    return reg.pushManager.getSubscription().then(function(sub){
+      st.textContent = sub ? 'ON ✅' : 'OFF';
+      b.onclick=function(){
+        if(sub){ sub.unsubscribe().then(function(){ return fetch("{{ url_for('push_unsubscribe') }}",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint})}); }).then(function(){ location.reload(); }); return; }
+        fetch("{{ url_for('push_vapid_key') }}").then(function(r){return r.text();}).then(function(key){
+          return reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64(key)});
+        }).then(function(s){
+          return fetch("{{ url_for('push_subscribe') }}",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(s.toJSON())});
+        }).then(function(){ location.reload(); }).catch(function(){ alert('Notification ki ijazat den 🔔'); });
+      };
+    });
+  });
+})();
+</script>
 
 <h2 class="sect">Meri Listings ({{ my_listings|length }})</h2>
 <div class="cards">
@@ -36,6 +59,22 @@
   </div>
 {% else %}
   <div class="empty">Abhi koi bid nahi lagayi.</div>
+{% endfor %}
+</div>
+
+<h2 class="sect" id="serials">🔢 Mere Serial Numbers ({{ my_serials|length }})</h2>
+<p class="muted">Apni products ke serial register karen — khareedar asli/naqli check kar sakega.</p>
+<form class="revform" action="{{ url_for('serial_add') }}" method="post">
+  <div class="row2">
+    <input name="serial" placeholder="Serial number" required maxlength="60">
+    <input name="product" placeholder="Product ka naam" required maxlength="120">
+    <input name="brand" placeholder="Brand" maxlength="40">
+    <button class="btn small" type="submit">Add</button>
+  </div>
+</form>
+<div class="cards">
+{% for s in my_serials %}
+  <div class="card"><div class="card-title">{{ s['serial'] }}</div><div class="muted">{{ s['product'] }}</div></div>
 {% endfor %}
 </div>
 {% endblock %}

@@ -1,14 +1,18 @@
-"""BijliMarket v2 - Pakistan ka electrical marketplace.
-Features: listings, demand board, bidding, in-app chat, favorites,
-deals, live rates (floor+trend), market summary, events, admin panel.
+"""BijliMarket v3 - Pakistan ka electrical marketplace.
+Features: listings, demand board, bidding, in-app chat (text + voice),
+favorites, deals + reviews, live rates (floor+trend), market summary + mood,
+seller profiles, brand directory, events, admin panel.
 WhatsApp integration REMOVED - in-app chat only.
 """
 import os
+import re
 import sqlite3
+import uuid
 from datetime import datetime, date
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, g, session
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bijlimarket-dev-key-change-me")
@@ -61,6 +65,11 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
         phone TEXT UNIQUE NOT NULL, pw TEXT NOT NULL, city TEXT DEFAULT '',
         created TEXT NOT NULL)""")
+    cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+    if "bio" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
+    if "is_verified" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 0")
     db.execute("""CREATE TABLE IF NOT EXISTS favorites (
         uid INTEGER NOT NULL, lid INTEGER NOT NULL,
         UNIQUE(uid, lid))""")
@@ -72,6 +81,15 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, sender_uid INTEGER NOT NULL,
         receiver_uid INTEGER NOT NULL, lid INTEGER DEFAULT NULL,
         text TEXT NOT NULL, seen INTEGER DEFAULT 0, created TEXT NOT NULL)""")
+    cols = [r[1] for r in db.execute("PRAGMA table_info(messages)").fetchall()]
+    if "audio" not in cols:
+        db.execute("ALTER TABLE messages ADD COLUMN audio TEXT DEFAULT ''")
+    db.execute("""CREATE TABLE IF NOT EXISTS reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, deal_id INTEGER NOT NULL,
+        reviewer_uid INTEGER NOT NULL, reviewee_uid INTEGER NOT NULL,
+        rating INTEGER NOT NULL, comment TEXT DEFAULT '',
+        created TEXT NOT NULL,
+        UNIQUE(deal_id, reviewer_uid))""")
     db.execute("""CREATE TABLE IF NOT EXISTS price_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT, day TEXT NOT NULL,
         category TEXT NOT NULL, floor_price INTEGER NOT NULL,
@@ -100,6 +118,7 @@ def init_db():
                    (owner["id"],))
         db.execute("UPDATE requirements SET uid=? WHERE uid IS NULL",
                    (owner["id"],))
+        db.execute("UPDATE users SET is_verified=1 WHERE id=?", (owner["id"],))
         db.commit()
 
     # Seed listings from bundled JSON on first run
@@ -162,6 +181,61 @@ def inject_user():
     return dict(me=u, unread=unread)
 
 
+def seller_stats(uid):
+    """Seller ki rating (avg, count) + verification."""
+    db = get_db()
+    r = db.execute(
+        "SELECT AVG(rating) a, COUNT(*) c FROM reviews WHERE reviewee_uid=?",
+        (uid,)).fetchone()
+    u = db.execute("SELECT is_verified FROM users WHERE id=?", (uid,)).fetchone()
+    avg = round(r["a"], 1) if r["a"] else 0
+    return {"avg": avg, "count": r["c"],
+            "verified": bool(u and u["is_verified"])}
+
+
+def stars_html(avg):
+    full = int(round(avg))
+    return "★" * full + "☆" * (5 - full)
+
+
+GENERIC_WORDS = {"LED", "PROFILE", "LIGHT", "BULB", "TUBE", "PANEL", "FAN",
+                 "WIRE", "CABLE", "SWITCH", "STRIP", "BATTEN", "FLOOD",
+                 "STREET", "HIGHBAY", "DRIVER", "DOWNLIGHT"}
+
+
+def brand_of(title):
+    """Listing title se brand nikalo (pehla lafz, safai ke sath)."""
+    w = (title or "").strip().split()
+    if not w:
+        return "Diger"
+    first = w[0].upper()
+    if first.startswith("OST"):
+        return "Ostric"
+    if any(ch.isdigit() for ch in w[0]) or "-" in w[0]:
+        return "Diger"  # model code, brand nahi
+    b = re.sub(r"[^A-Za-z]", "", w[0]).upper()
+    if not b or b in GENERIC_WORDS or len(b) <= 2:
+        return "Diger"
+    return b[:18].title()
+
+
+def market_mood(trends):
+    """Fear/greed jaisa mood meter: 0-100. Zyada = khareedar ke haq me (qeemat gir rahi)."""
+    ups = sum(1 for t in trends.values() if t == "up")
+    downs = sum(1 for t in trends.values() if t == "down")
+    total = sum(1 for t in trends.values() if t in ("up", "down"))
+    if not total:
+        return {"score": 50, "label": "Nayi market — data jama ho raha hai"}
+    score = round(50 + (downs - ups) / total * 50)
+    if score >= 65:
+        label = "Khareedar ke haq me — qeematen gir rahi hain 📉"
+    elif score <= 35:
+        label = "Bechne wale ke haq me — qeematen barh rahi hain 📈"
+    else:
+        label = "Mutawazin bazar — sakoon se khareeden ⚖️"
+    return {"score": score, "label": label}
+
+
 # ---------- Home / listings ----------
 @app.route("/")
 def index():
@@ -206,6 +280,7 @@ def index():
             trends[c] = "flat"
     sellers = db.execute("SELECT COUNT(DISTINCT seller_uid) FROM listings").fetchone()[0]
     demands = db.execute("SELECT COUNT(*) FROM requirements").fetchone()[0]
+    mood = market_mood(trends)
     evs = db.execute("SELECT * FROM events ORDER BY id DESC LIMIT 3").fetchall()
     favs = set()
     if session.get("uid"):
@@ -214,7 +289,7 @@ def index():
     return render_template("index.html", listings=listings, categories=CATEGORIES,
                            counts=counts, q=q, cat=cat, floors=floors,
                            trends=trends, sellers=sellers, demands=demands,
-                           events=evs, favs=favs)
+                           events=evs, favs=favs, mood=mood)
 
 
 @app.route("/listing/<int:lid>")
@@ -235,8 +310,10 @@ def listing_detail(lid):
     is_fav = session.get("uid") and db.execute(
         "SELECT 1 FROM favorites WHERE uid=? AND lid=?",
         (session["uid"], lid)).fetchone()
+    sstats = seller_stats(item["seller_uid"]) if item["seller_uid"] else None
     return render_template("listing.html", item=item, related=related,
-                           floor=floor, ncat=n, is_fav=bool(is_fav))
+                           floor=floor, ncat=n, is_fav=bool(is_fav),
+                           sstats=sstats, stars=stars_html)
 
 
 @app.route("/favorite/<int:lid>", methods=["POST"])
@@ -306,17 +383,25 @@ def logout():
     return redirect(url_for("index"))
 
 
-@app.route("/account")
+@app.route("/account", methods=["GET", "POST"])
 @login_required
 def account():
     db = get_db()
     u = current_user()
+    if request.method == "POST":
+        bio = request.form.get("bio", "").strip()[:300]
+        city = request.form.get("city", "").strip()[:60]
+        db.execute("UPDATE users SET bio=?, city=? WHERE id=?", (bio, city, u["id"]))
+        db.commit()
+        return redirect(url_for("account"))
     my_listings = db.execute("SELECT * FROM listings WHERE seller_uid=? ORDER BY id DESC",
                              (u["id"],)).fetchall()
     my_bids = db.execute(
         "SELECT b.*, r.product FROM bids b JOIN requirements r ON r.id=b.req_id"
         " WHERE b.bidder_uid=? ORDER BY b.id DESC", (u["id"],)).fetchall()
-    return render_template("account.html", my_listings=my_listings, my_bids=my_bids)
+    st = seller_stats(u["id"])
+    return render_template("account.html", my_listings=my_listings, my_bids=my_bids,
+                           st=st, stars=stars_html)
 
 
 # ---------- Demand board + bidding ----------
@@ -464,17 +549,100 @@ def deal_propose(lid):
     return redirect(url_for("deals"))
 
 
+# ---------- Seller profiles + reviews ----------
+@app.route("/seller/<int:uid>")
+def seller_profile(uid):
+    db = get_db()
+    u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if not u:
+        return redirect(url_for("index"))
+    listings = db.execute("SELECT * FROM listings WHERE seller_uid=? ORDER BY id DESC",
+                           (uid,)).fetchall()
+    revs = db.execute(
+        """SELECT r.*, u.name AS rname FROM reviews r JOIN users u ON u.id=r.reviewer_uid
+           WHERE r.reviewee_uid=? ORDER BY r.id DESC""", (uid,)).fetchall()
+    st = seller_stats(uid)
+    return render_template("seller.html", u=u, listings=listings, revs=revs,
+                           st=st, stars=stars_html)
+
+
+@app.route("/deal/<int:did>/review", methods=["POST"])
+@login_required
+def deal_review(did):
+    db = get_db()
+    d = db.execute("SELECT * FROM deals WHERE id=?", (did,)).fetchone()
+    uid = session["uid"]
+    if not d or d["status"] != "completed" or uid not in (d["buyer_uid"], d["seller_uid"]):
+        return redirect(url_for("deals"))
+    other = d["seller_uid"] if uid == d["buyer_uid"] else d["buyer_uid"]
+    rating = request.form.get("rating", "5")
+    rating = int(rating) if rating.isdigit() and 1 <= int(rating) <= 5 else 5
+    try:
+        db.execute(
+            "INSERT INTO reviews (deal_id, reviewer_uid, reviewee_uid, rating, comment, created)"
+            " VALUES (?,?,?,?,?,?)",
+            (did, uid, other, rating, request.form.get("comment", "").strip()[:300],
+             datetime.now().strftime("%Y-%m-%d %H:%M")))
+        db.commit()
+    except sqlite3.IntegrityError:
+        pass
+    return redirect(url_for("deals"))
+
+
+# ---------- Brand directory ----------
+@app.route("/brands")
+def brands():
+    db = get_db()
+    rows = db.execute("SELECT id, title, category, price FROM listings").fetchall()
+    info = {}
+    for r in rows:
+        b = brand_of(r["title"])
+        e = info.setdefault(b, {"count": 0, "floor": None, "cats": set(), "sample": r["title"]})
+        e["count"] += 1
+        e["cats"].add(r["category"])
+        if e["floor"] is None or r["price"] < e["floor"]:
+            e["floor"] = r["price"]
+    brands = sorted(info.items(), key=lambda kv: -kv[1]["count"])
+    return render_template("brands.html", brands=brands)
+
+
+# ---------- Voice messages ----------
+AUDIO_DIR = os.path.join(os.path.dirname(__file__), "static", "audio")
+
+
+@app.route("/chat/<int:other_uid>/audio", methods=["POST"])
+@login_required
+def chat_audio(other_uid):
+    db = get_db()
+    uid = session["uid"]
+    other = db.execute("SELECT id FROM users WHERE id=?", (other_uid,)).fetchone()
+    f = request.files.get("audio")
+    if not other or other_uid == uid or not f:
+        return redirect(url_for("chat_thread", other_uid=other_uid))
+    os.makedirs(AUDIO_DIR, exist_ok=True)
+    fname = secure_filename(f"v_{uid}_{uuid.uuid4().hex[:8]}.webm")
+    f.save(os.path.join(AUDIO_DIR, fname))
+    db.execute(
+        "INSERT INTO messages (sender_uid, receiver_uid, lid, text, audio, created)"
+        " VALUES (?,?,?,?,?,?)",
+        (uid, other_uid, request.args.get("lid") or None, "",
+         fname, datetime.now().strftime("%Y-%m-%d %H:%M")))
+    db.commit()
+    return redirect(url_for("chat_thread", other_uid=other_uid))
+
+
 @app.route("/deals")
 @login_required
 def deals():
     db = get_db()
     uid = session["uid"]
     rows = db.execute(
-        """SELECT d.*, l.title, bu.name AS bname, su.name AS sname
+        """SELECT d.*, l.title, bu.name AS bname, su.name AS sname,
+             (SELECT COUNT(*) FROM reviews r WHERE r.deal_id=d.id AND r.reviewer_uid=? ) AS myrev
            FROM deals d JOIN listings l ON l.id=d.lid
            JOIN users bu ON bu.id=d.buyer_uid JOIN users su ON su.id=d.seller_uid
            WHERE d.buyer_uid=? OR d.seller_uid=? ORDER BY d.id DESC""",
-        (uid, uid)).fetchall()
+        (uid, uid, uid)).fetchall()
     return render_template("deals.html", rows=rows, uid=uid)
 
 

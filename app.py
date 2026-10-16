@@ -1,11 +1,13 @@
-"""BijliMarket v3 - Pakistan ka electrical marketplace.
+"""BijliMarket v4 - Pakistan ka electrical marketplace.
 Features: listings, demand board, bidding, in-app chat (text + voice),
-favorites, deals + reviews, live rates (floor+trend), market summary + mood,
-seller profiles, brand directory, events, admin panel.
-WhatsApp integration REMOVED - in-app chat only.
+favorites, deals + reviews, live rates (floor+trend), market summary + mood
++ gainers/losers + heatmap + forecast, seller profiles + follows + trust%,
+brand directory, stories, nearby sellers, serial verify, web push,
+events, admin panel. WhatsApp integration REMOVED - in-app chat only.
 """
 import os
 import re
+import json
 import sqlite3
 import uuid
 from datetime import datetime, date
@@ -70,6 +72,14 @@ def init_db():
         db.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
     if "is_verified" not in cols:
         db.execute("ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 0")
+    if "logo" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN logo TEXT DEFAULT ''")
+    if "cover" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN cover TEXT DEFAULT ''")
+    if "lat" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN lat REAL DEFAULT NULL")
+    if "lng" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN lng REAL DEFAULT NULL")
     db.execute("""CREATE TABLE IF NOT EXISTS favorites (
         uid INTEGER NOT NULL, lid INTEGER NOT NULL,
         UNIQUE(uid, lid))""")
@@ -90,6 +100,22 @@ def init_db():
         rating INTEGER NOT NULL, comment TEXT DEFAULT '',
         created TEXT NOT NULL,
         UNIQUE(deal_id, reviewer_uid))""")
+    db.execute("""CREATE TABLE IF NOT EXISTS follows (
+        follower_uid INTEGER NOT NULL, followed_uid INTEGER NOT NULL,
+        created TEXT NOT NULL,
+        UNIQUE(follower_uid, followed_uid))""")
+    db.execute("""CREATE TABLE IF NOT EXISTS stories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL,
+        image TEXT NOT NULL, caption TEXT DEFAULT '',
+        created TEXT NOT NULL)""")
+    db.execute("""CREATE TABLE IF NOT EXISTS serials (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, serial TEXT UNIQUE NOT NULL,
+        product TEXT NOT NULL, brand TEXT DEFAULT '', uid INTEGER NOT NULL,
+        created TEXT NOT NULL)""")
+    db.execute("""CREATE TABLE IF NOT EXISTS push_subs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL,
+        endpoint TEXT UNIQUE NOT NULL, p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL, created TEXT NOT NULL)""")
     db.execute("""CREATE TABLE IF NOT EXISTS price_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT, day TEXT NOT NULL,
         category TEXT NOT NULL, floor_price INTEGER NOT NULL,
@@ -182,15 +208,28 @@ def inject_user():
 
 
 def seller_stats(uid):
-    """Seller ki rating (avg, count) + verification."""
+    """Seller ki rating (avg, count) + verification + trust% + followers."""
     db = get_db()
     r = db.execute(
         "SELECT AVG(rating) a, COUNT(*) c FROM reviews WHERE reviewee_uid=?",
         (uid,)).fetchone()
-    u = db.execute("SELECT is_verified FROM users WHERE id=?", (uid,)).fetchone()
+    u = db.execute("SELECT is_verified, created FROM users WHERE id=?", (uid,)).fetchone()
     avg = round(r["a"], 1) if r["a"] else 0
-    return {"avg": avg, "count": r["c"],
-            "verified": bool(u and u["is_verified"])}
+    verified = bool(u and u["is_verified"])
+    nrev = r["c"]
+    deals_done = db.execute(
+        "SELECT COUNT(*) FROM deals WHERE (buyer_uid=? OR seller_uid=?) AND status='completed'",
+        (uid, uid)).fetchone()[0]
+    nlist = db.execute("SELECT COUNT(*) FROM listings WHERE seller_uid=?", (uid,)).fetchone()[0]
+    followers = db.execute("SELECT COUNT(*) FROM follows WHERE followed_uid=?", (uid,)).fetchone()[0]
+    following = db.execute("SELECT COUNT(*) FROM follows WHERE follower_uid=?", (uid,)).fetchone()[0]
+    # trust %: verified 30 + rating 30 + deals 25 + activity 15
+    trust = (30 if verified else 0) + round(avg / 5 * 30) \
+        + min(deals_done, 10) * 2.5 + min(nlist + nrev, 15)
+    trust = min(99, int(trust)) if (verified or nrev or deals_done or nlist) else 0
+    return {"avg": avg, "count": nrev, "verified": verified,
+            "trust": trust, "followers": followers, "following": following,
+            "deals_done": deals_done}
 
 
 def stars_html(avg):
@@ -281,6 +320,7 @@ def index():
     sellers = db.execute("SELECT COUNT(DISTINCT seller_uid) FROM listings").fetchone()[0]
     demands = db.execute("SELECT COUNT(*) FROM requirements").fetchone()[0]
     mood = market_mood(trends)
+    story_users = active_story_users()
     evs = db.execute("SELECT * FROM events ORDER BY id DESC LIMIT 3").fetchall()
     favs = set()
     if session.get("uid"):
@@ -289,7 +329,7 @@ def index():
     return render_template("index.html", listings=listings, categories=CATEGORIES,
                            counts=counts, q=q, cat=cat, floors=floors,
                            trends=trends, sellers=sellers, demands=demands,
-                           events=evs, favs=favs, mood=mood)
+                           events=evs, favs=favs, mood=mood, story_users=story_users)
 
 
 @app.route("/listing/<int:lid>")
@@ -392,6 +432,16 @@ def account():
         bio = request.form.get("bio", "").strip()[:300]
         city = request.form.get("city", "").strip()[:60]
         db.execute("UPDATE users SET bio=?, city=? WHERE id=?", (bio, city, u["id"]))
+        logo = request.files.get("logo")
+        if logo and logo.filename:
+            fn = save_image(logo, f"logo{u['id']}")
+            if fn:
+                db.execute("UPDATE users SET logo=? WHERE id=?", (fn, u["id"]))
+        cover = request.files.get("cover")
+        if cover and cover.filename:
+            fn = save_image(cover, f"cover{u['id']}")
+            if fn:
+                db.execute("UPDATE users SET cover=? WHERE id=?", (fn, u["id"]))
         db.commit()
         return redirect(url_for("account"))
     my_listings = db.execute("SELECT * FROM listings WHERE seller_uid=? ORDER BY id DESC",
@@ -400,8 +450,10 @@ def account():
         "SELECT b.*, r.product FROM bids b JOIN requirements r ON r.id=b.req_id"
         " WHERE b.bidder_uid=? ORDER BY b.id DESC", (u["id"],)).fetchall()
     st = seller_stats(u["id"])
+    my_serials = db.execute("SELECT * FROM serials WHERE uid=? ORDER BY id DESC",
+                            (u["id"],)).fetchall()
     return render_template("account.html", my_listings=my_listings, my_bids=my_bids,
-                           st=st, stars=stars_html)
+                           st=st, stars=stars_html, my_serials=my_serials)
 
 
 # ---------- Demand board + bidding ----------
@@ -446,6 +498,12 @@ def bid(rid):
             (rid, session["uid"], int(price), request.form.get("note", "").strip(),
              datetime.now().strftime("%Y-%m-%d %H:%M")))
         db.commit()
+        req = db.execute("SELECT uid, product FROM requirements WHERE id=?", (rid,)).fetchone()
+        me = current_user()
+        if req and req["uid"] and req["uid"] != session["uid"]:
+            send_push(req["uid"], "🔨 Nayi bid: " + (req["product"][:40] if req["product"] else ""),
+                      f"{me['name']} ne Rs {int(price):,} ki bid lagayi",
+                      url_for("requirements"))
     return redirect(url_for("requirements"))
 
 
@@ -510,6 +568,8 @@ def chat_thread(other_uid):
                 (uid, other_uid, request.args.get("lid") or None, text,
                  datetime.now().strftime("%Y-%m-%d %H:%M")))
             db.commit()
+            send_push(other_uid, "💬 " + other["name"],
+                      text[:100], url_for("chat_thread", other_uid=uid))
             return redirect(url_for("chat_thread", other_uid=other_uid))
     db.execute("UPDATE messages SET seen=1 WHERE sender_uid=? AND receiver_uid=?",
                (other_uid, uid))
@@ -562,8 +622,30 @@ def seller_profile(uid):
         """SELECT r.*, u.name AS rname FROM reviews r JOIN users u ON u.id=r.reviewer_uid
            WHERE r.reviewee_uid=? ORDER BY r.id DESC""", (uid,)).fetchall()
     st = seller_stats(uid)
+    is_following = False
+    if session.get("uid") and session["uid"] != uid:
+        is_following = bool(db.execute(
+            "SELECT 1 FROM follows WHERE follower_uid=? AND followed_uid=?",
+            (session["uid"], uid)).fetchone())
     return render_template("seller.html", u=u, listings=listings, revs=revs,
-                           st=st, stars=stars_html)
+                           st=st, stars=stars_html, is_following=is_following)
+
+
+@app.route("/follow/<int:uid>", methods=["POST"])
+@login_required
+def follow(uid):
+    me = session["uid"]
+    if uid != me:
+        db = get_db()
+        ex = db.execute("SELECT 1 FROM follows WHERE follower_uid=? AND followed_uid=?",
+                        (me, uid)).fetchone()
+        if ex:
+            db.execute("DELETE FROM follows WHERE follower_uid=? AND followed_uid=?", (me, uid))
+        else:
+            db.execute("INSERT INTO follows (follower_uid, followed_uid, created) VALUES (?,?,?)",
+                       (me, uid, datetime.now().strftime("%Y-%m-%d %H:%M")))
+        db.commit()
+    return redirect(url_for("seller_profile", uid=uid))
 
 
 @app.route("/deal/<int:did>/review", methods=["POST"])
@@ -589,6 +671,143 @@ def deal_review(did):
     return redirect(url_for("deals"))
 
 
+def haversine(lat1, lon1, lat2, lon2):
+    from math import radians, sin, cos, asin, sqrt
+    R = 6371.0
+    dlat, dlon = radians(lat2 - lat1), radians(lon2 - lon1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    return round(2 * R * asin(sqrt(a)), 1)
+
+
+# ---------- Stories (24 ghante) ----------
+@app.route("/stories")
+def stories():
+    db = get_db()
+    rows = db.execute(
+        """SELECT s.*, u.name AS uname FROM stories s JOIN users u ON u.id=s.uid
+           WHERE datetime('now') < datetime(s.created, '+1 day')
+           ORDER BY s.id DESC""").fetchall()
+    return render_template("stories.html", rows=rows)
+
+
+@app.route("/story/new", methods=["POST"])
+@login_required
+def story_new():
+    f = request.files.get("image")
+    if f and f.filename:
+        fn = save_image(f, f"story{session['uid']}")
+        if fn:
+            db = get_db()
+            db.execute("INSERT INTO stories (uid, image, caption, created) VALUES (?,?,?,?)",
+                       (session["uid"], fn, request.form.get("caption", "").strip()[:200],
+                        datetime.now().strftime("%Y-%m-%d %H:%M")))
+            db.commit()
+    return redirect(url_for("stories"))
+
+
+def active_story_users():
+    db = get_db()
+    return db.execute(
+        """SELECT DISTINCT u.id, u.name, u.logo FROM stories s JOIN users u ON u.id=s.uid
+           WHERE datetime('now') < datetime(s.created, '+1 day') ORDER BY s.id DESC""").fetchall()
+
+
+# ---------- Nearby sellers ----------
+@app.route("/nearby")
+def nearby():
+    db = get_db()
+    me = current_user()
+    sellers = db.execute(
+        """SELECT u.id, u.name, u.city, u.lat, u.lng, u.logo, u.is_verified,
+             (SELECT COUNT(*) FROM listings l WHERE l.seller_uid=u.id) AS nlist
+           FROM users u WHERE u.lat IS NOT NULL AND u.lng IS NOT NULL""").fetchall()
+    out = []
+    for s in sellers:
+        d = None
+        if me and me["lat"] and me["lng"]:
+            d = haversine(me["lat"], me["lng"], s["lat"], s["lng"])
+        out.append((d if d is not None else 1e9, dict(s), d))
+    out.sort(key=lambda x: x[0])
+    return render_template("nearby.html", sellers=[x[1] for x in out],
+                           dists={x[1]["id"]: x[2] for x in out},
+                           has_loc=bool(me and me["lat"]))
+
+
+@app.route("/set-location", methods=["POST"])
+@login_required
+def set_location():
+    try:
+        lat, lng = float(request.form["lat"]), float(request.form["lng"])
+        if -90 <= lat <= 90 and -180 <= lng <= 180:
+            db = get_db()
+            db.execute("UPDATE users SET lat=?, lng=? WHERE id=?", (lat, lng, session["uid"]))
+            db.commit()
+    except (ValueError, KeyError):
+        pass
+    return redirect(request.referrer or url_for("index"))
+
+
+# ---------- Serial verify (asli / naqli) ----------
+@app.route("/verify", methods=["GET", "POST"])
+def verify():
+    result, serial = None, ""
+    if request.method == "POST":
+        serial = request.form.get("serial", "").strip().upper()
+        if serial:
+            r = get_db().execute(
+                """SELECT s.*, u.name AS uname FROM serials s
+                   JOIN users u ON u.id=s.uid WHERE s.serial=?""", (serial,)).fetchone()
+            result = dict(r) if r else False
+    return render_template("verify.html", result=result, serial=serial)
+
+
+@app.route("/serial/add", methods=["POST"])
+@login_required
+def serial_add():
+    serial = request.form.get("serial", "").strip().upper()
+    product = request.form.get("product", "").strip()
+    if serial and product:
+        db = get_db()
+        try:
+            db.execute(
+                "INSERT INTO serials (serial, product, brand, uid, created) VALUES (?,?,?,?,?)",
+                (serial, product, request.form.get("brand", "").strip()[:40],
+                 session["uid"], datetime.now().strftime("%Y-%m-%d %H:%M")))
+            db.commit()
+        except sqlite3.IntegrityError:
+            pass
+    return redirect(url_for("account") + "#serials")
+
+
+# ---------- Analytics+: gainers/losers, heatmap, forecast (takmeena) ----------
+@app.route("/analytics")
+def analytics():
+    db = get_db()
+    cats = [r[0] for r in db.execute("SELECT DISTINCT category FROM listings").fetchall()]
+    rows = []
+    for c in cats:
+        pts = db.execute(
+            "SELECT day, floor_price FROM price_history WHERE category=? ORDER BY day DESC LIMIT 7",
+            (c,)).fetchall()
+        if len(pts) >= 2:
+            new, old = pts[0]["floor_price"], pts[-1]["floor_price"]
+            chg = round((new - old) / old * 100, 1) if old else 0
+        else:
+            chg = 0
+        fl = pts[0]["floor_price"] if pts else None
+        fc, fdir = None, "flat"
+        if len(pts) >= 2:
+            d = pts[0]["floor_price"] - pts[1]["floor_price"]
+            fc = max(0, pts[0]["floor_price"] + d)
+            fdir = "down" if d < 0 else "up" if d > 0 else "flat"
+        rows.append({"cat": c, "floor": fl, "chg": chg, "fc": fc, "fdir": fdir,
+                     "n": db.execute("SELECT COUNT(*) FROM listings WHERE category=?",
+                                     (c,)).fetchone()[0]})
+    gainers = sorted([r for r in rows if r["chg"] > 0], key=lambda x: -x["chg"])[:5]
+    losers = sorted([r for r in rows if r["chg"] < 0], key=lambda x: x["chg"])[:5]
+    return render_template("analytics.html", rows=rows, gainers=gainers, losers=losers)
+
+
 # ---------- Brand directory ----------
 @app.route("/brands")
 def brands():
@@ -608,6 +827,18 @@ def brands():
 
 # ---------- Voice messages ----------
 AUDIO_DIR = os.path.join(os.path.dirname(__file__), "static", "audio")
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "uploads")
+ALLOWED_IMG = {"png", "jpg", "jpeg", "webp", "gif"}
+
+
+def save_image(f, prefix):
+    ext = (f.filename.rsplit(".", 1)[-1] if "." in f.filename else "jpg").lower()
+    if ext not in ALLOWED_IMG:
+        return None
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    fname = secure_filename(f"{prefix}_{uuid.uuid4().hex[:8]}.{ext}")
+    f.save(os.path.join(UPLOAD_DIR, fname))
+    return fname
 
 
 @app.route("/chat/<int:other_uid>/audio", methods=["POST"])
@@ -666,7 +897,96 @@ def deal_action(did, action):
     return redirect(url_for("deals"))
 
 
-# ---------- Events ----------
+# ---------- Web Push Notifications (VAPID, self-contained) ----------
+_VAPID_CACHE = {}
+
+
+def _b64_pubkey(pubkey_obj):
+    import base64
+    nums = pubkey_obj.public_numbers()
+    return base64.urlsafe_b64encode(
+        nums.x.to_bytes(32, "big") + nums.y.to_bytes(32, "big")).decode().rstrip("=")
+
+
+def get_vapid():
+    """Returns (public_key_b64str, private_key_pem_str)."""
+    if "keys" in _VAPID_CACHE:
+        return _VAPID_CACHE["keys"]
+    pub = os.environ.get("VAPID_PUBLIC_KEY")
+    priv = os.environ.get("VAPID_PRIVATE_KEY")
+    if pub and priv:
+        _VAPID_CACHE["keys"] = (pub, priv)
+        return pub, priv
+    # fallback: runtime par generate (production me env vars lagayen)
+    from py_vapid import Vapid
+    from cryptography.hazmat.primitives import serialization
+    v = Vapid()
+    v.generate_keys()
+    pem = v.private_key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption()).decode()
+    keys = (_b64_pubkey(v.public_key), pem)
+    _VAPID_CACHE["keys"] = keys
+    return keys
+
+
+def send_push(uid, title, body, url="/"):
+    """User ke tamam push subscriptions par notification bhejo. Fail = khamoshi."""
+    try:
+        from pywebpush import webpush
+        pub, priv = get_vapid()
+        db = get_db()
+        subs = db.execute("SELECT * FROM push_subs WHERE uid=?", (uid,)).fetchall()
+        for s in subs:
+            try:
+                webpush(
+                    subscription_info={"endpoint": s["endpoint"],
+                                       "keys": {"p256dh": s["p256dh"], "auth": s["auth"]}},
+                    data=json.dumps({"title": title, "body": body, "url": url}),
+                    vapid_private_key=priv,
+                    vapid_claims={"sub": "mailto:admin@bijlimarket.pk"})
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+@app.route("/push/vapid-key")
+def push_vapid_key():
+    pub, _ = get_vapid()
+    return pub
+
+
+@app.route("/push/subscribe", methods=["POST"])
+@login_required
+def push_subscribe():
+    data = request.get_json(force=True, silent=True) or {}
+    ep = data.get("endpoint", "")
+    keys = data.get("keys", {})
+    if ep and keys.get("p256dh") and keys.get("auth"):
+        db = get_db()
+        try:
+            db.execute(
+                "INSERT OR REPLACE INTO push_subs (uid, endpoint, p256dh, auth, created)"
+                " VALUES (?,?,?,?,?)",
+                (session["uid"], ep, keys["p256dh"], keys["auth"],
+                 datetime.now().strftime("%Y-%m-%d %H:%M")))
+            db.commit()
+        except sqlite3.IntegrityError:
+            pass
+    return {"ok": True}
+
+
+@app.route("/push/unsubscribe", methods=["POST"])
+@login_required
+def push_unsubscribe():
+    data = request.get_json(force=True, silent=True) or {}
+    if data.get("endpoint"):
+        db = get_db()
+        db.execute("DELETE FROM push_subs WHERE uid=? AND endpoint=?",
+                   (session["uid"], data["endpoint"]))
+        db.commit()
+    return {"ok": True}
 @app.route("/events")
 def events():
     evs = get_db().execute("SELECT * FROM events ORDER BY id DESC").fetchall()

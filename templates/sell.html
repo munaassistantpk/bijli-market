@@ -2,7 +2,7 @@
 {% block title %}Listing Lagayen — BijliMarket{% endblock %}
 {% block content %}
 <h1 class="pagetitle">➕ Apni Product Bechen</h1>
-<p class="muted">Listing fori live ho jayegi — koi fee nahi.</p>
+<p class="muted">Listing fori live ho jayegi — {{ me['name'] }} ke naam se.</p>
 {% if error %}
 <div class="notice err">⚠️ Sab zaroori khane pur karen (qeemat sirf number me).</div>
 {% endif %}
@@ -14,13 +14,9 @@
   </select>
   <div class="row2">
     <input name="price" placeholder="Qeemat (Rs, sirf number)" inputmode="numeric" required>
-    <input name="city" placeholder="Sheher">
+    <input name="city" placeholder="Sheher" value="{{ me['city'] }}">
   </div>
   <input name="detail" placeholder="Tafseel (misal: 12W, E27, 6500K, 1 saal warranty)">
-  <div class="row2">
-    <input name="seller" placeholder="Dukaan/Seller ka naam" required>
-    <input name="phone" placeholder="WhatsApp number" required>
-  </div>
   <button type="submit" class="btn">Listing Lagayen</button>
 </form>
 {% endblock %}

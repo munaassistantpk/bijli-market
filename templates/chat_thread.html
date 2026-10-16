@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Chat — {{ other['name'] }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('chat_list') }}">← Chats</a>
+<h1 class="pagetitle">💬 {{ other['name'] }}</h1>
+<div class="thread" id="thread">
+{% for m in msgs %}
+  <div class="msg {{ 'me' if m['sender_uid']==uid else 'them' }}">
+    <div class="bubble">{{ m['text'] }}</div>
+    <div class="mtime">{{ m['created'] }}</div>
+  </div>
+{% else %}
+  <div class="empty">Pehla paigham bhejen. 👋</div>
+{% endfor %}
+</div>
+<form class="sendbar" method="post">
+  <input name="text" placeholder="Paigham likhen…" autocomplete="off" required>
+  <button type="submit">➤</button>
+</form>
+<script>
+var t=document.getElementById('thread'); if(t){t.scrollTop=t.scrollHeight;}
+setTimeout(function(){location.reload();},30000);
+</script>
+{% endblock %}

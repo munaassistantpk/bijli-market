@@ -2,12 +2,13 @@
 {% block title %}Demand Board — BijliMarket{% endblock %}
 {% block content %}
 <h1 class="pagetitle">📋 Demand Board</h1>
-<p class="muted">Kharidne walon ki demands — seller seedha WhatsApp par rabta kare.</p>
+<p class="muted">Kharidne walon ki demands — seller bid lagaye ya chat kare.</p>
 
 {% if posted %}
 <div class="notice">✅ Aap ki demand post ho gayi!</div>
 {% endif %}
 
+{% if me %}
 <form class="form" action="{{ url_for('requirements') }}" method="post">
   <h3>Apni demand post karen</h3>
   <input name="product" placeholder="Kya chahiye? (misal: 100x LED bulb 12W)" required>
@@ -15,13 +16,12 @@
     <input name="qty" placeholder="Miqdar (misal: 100 adad)">
     <input name="city" placeholder="Sheher">
   </div>
-  <div class="row2">
-    <input name="name" placeholder="Aap ka naam" required>
-    <input name="phone" placeholder="WhatsApp number" required>
-  </div>
   <input name="note" placeholder="Mazeed tafseel (optional)">
   <button type="submit" class="btn">Demand Post Karen</button>
 </form>
+{% else %}
+<div class="notice">Demand post karne ke liye <a href="{{ url_for('login', next=url_for('requirements')) }}"><b>login</b></a> karen.</div>
+{% endif %}
 
 <h2 class="sect">Maujooda Demands ({{ reqs|length }})</h2>
 <div class="cards">
@@ -30,10 +30,24 @@
     <div class="card-title">{{ r['product'] }}</div>
     <div class="card-detail">{% if r['qty'] %}Miqdar: {{ r['qty'] }} · {% endif %}{% if r['city'] %}📍 {{ r['city'] }} · {% endif %}👤 {{ r['name'] }}</div>
     {% if r['note'] %}<div class="card-detail">{{ r['note'] }}</div>{% endif %}
-    <div class="card-bot">
-      <span class="muted">{{ r['created'] }}</span>
-      <a class="wa-btn" href="{{ wa_link(r['phone'], 'Assalam-o-Alaikum! BijliMarket Demand Board par aap ki demand (' + r['product'] + ') dekhi. Main de sakta hoon.') }}" target="_blank">WhatsApp</a>
+    <div class="bids">
+      <b>🔨 Bids ({{ r['bidcount'] }}):</b>
+      {% for b in bids[r['id']] %}
+      <div class="bidrow"><span>{{ b['bname'] }} — <b>Rs {{ "{:,}".format(b['price']) }}</b>{% if b['note'] %} ({{ b['note'] }}){% endif %}</span>
+        {% if me and b['bidder_uid'] != me['id'] %}<a class="mini" href="{{ url_for('chat_thread', other_uid=b['bidder_uid']) }}">💬</a>{% endif %}
+      </div>
+      {% else %}
+      <div class="muted">Abhi koi bid nahi.</div>
+      {% endfor %}
     </div>
+    {% if me %}
+    <form class="bidform" action="{{ url_for('bid', rid=r['id']) }}" method="post">
+      <input name="price" placeholder="Aap ki qeemat (Rs)" inputmode="numeric" required>
+      <input name="note" placeholder="Note (optional)">
+      <button class="btn small" type="submit">Bid Lagayen</button>
+    </form>
+    {% endif %}
+    <div class="muted">{{ r['created'] }}</div>
   </div>
 {% else %}
   <div class="empty">Abhi koi demand nahi — pehli post karen!</div>

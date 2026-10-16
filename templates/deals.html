@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Meri Deals — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">🤝 Meri Deals</h1>
+<p class="muted">Note: paisa abhi app ke bahar hota hai — yeh sirf deal ka record hai.</p>
+<div class="cards">
+{% for d in rows %}
+  <div class="card">
+    <div class="card-title">{{ d['title'] }}</div>
+    <div class="card-detail">
+      {% if d['buyer_uid']==uid %}Seller: {{ d['sname'] }}{% else %}Buyer: {{ d['bname'] }}{% endif %}
+      · Offer: <b>Rs {{ "{:,}".format(d['price']) }}</b>
+    </div>
+    <div class="card-bot">
+      <span class="pill st-{{ d['status'] }}">{{ {'proposed':'Nayi Offer','accepted':'Qubool','declined':'Mustarad','completed':'Mukammal','cancelled':'Mansookh'}[d['status']] }}</span>
+      <span class="muted">{{ d['created'] }}</span>
+    </div>
+    <div class="actions" style="margin-top:8px">
+      {% if d['status']=='proposed' and d['seller_uid']==uid %}
+      <form action="{{ url_for('deal_action', did=d['id'], action='accept') }}" method="post"><button class="btn small">Qubool</button></form>
+      <form action="{{ url_for('deal_action', did=d['id'], action='decline') }}" method="post"><button class="btn small ghost">Inkar</button></form>
+      {% endif %}
+      {% if d['status']=='accepted' %}
+      <form action="{{ url_for('deal_action', did=d['id'], action='complete') }}" method="post"><button class="btn small">Mukammal ✅</button></form>
+      {% endif %}
+      {% if d['status'] in ['proposed','accepted'] %}
+      <form action="{{ url_for('deal_action', did=d['id'], action='cancel') }}" method="post"><button class="btn small ghost">Mansookh</button></form>
+      {% endif %}
+      {% if d['buyer_uid']==uid %}
+      <a class="btn small" href="{{ url_for('chat_thread', other_uid=d['seller_uid']) }}">💬 Chat</a>
+      {% else %}
+      <a class="btn small" href="{{ url_for('chat_thread', other_uid=d['buyer_uid']) }}">💬 Chat</a>
+      {% endif %}
+    </div>
+  </div>
+{% else %}
+  <div class="empty">Abhi koi deal nahi.</div>
+{% endfor %}
+</div>
+{% endblock %}

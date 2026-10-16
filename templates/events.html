@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Events & News — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">📢 Events & News</h1>
+<div class="cards">
+{% for e in events %}
+  <div class="card">
+    <div class="card-title">{{ e['title'] }}</div>
+    {% if e['body'] %}<div class="card-detail">{{ e['body'] }}</div>{% endif %}
+    <div class="muted">{{ e['created'] }}</div>
+  </div>
+{% else %}
+  <div class="empty">Abhi koi event/news nahi.</div>
+{% endfor %}
+</div>
+{% endblock %}

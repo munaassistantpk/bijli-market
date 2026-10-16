@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Login — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">👤 Login</h1>
+{% if error %}<div class="notice err">⚠️ {{ error }}</div>{% endif %}
+<form class="form" method="post">
+  <input name="phone" placeholder="WhatsApp/mobile number" inputmode="tel" required>
+  <input type="password" name="pw" placeholder="Password" required>
+  <button type="submit" class="btn">Login</button>
+</form>
+<p class="muted">Naye hain? <a href="{{ url_for('register', next=request.args.get('next')) }}"><b>Account banayen</b></a></p>
+{% endblock %}

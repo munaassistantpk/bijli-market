@@ -19,8 +19,9 @@
 <nav class="bottomnav">
   <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint=='index' else '' }}">🏠<span>Home</span></a>
   <a href="{{ url_for('requirements') }}" class="{{ 'active' if request.endpoint=='requirements' else '' }}">📋<span>Demand</span></a>
+  <a href="{{ url_for('chat_list') }}" class="{{ 'active' if request.endpoint in ['chat_list','chat_thread'] else '' }}">💬<span>Chat{% if unread %} ({{ unread }}){% endif %}</span></a>
   <a href="{{ url_for('sell') }}" class="{{ 'active' if request.endpoint=='sell' else '' }}">➕<span>Becho</span></a>
-  <a href="{{ url_for('about') }}" class="{{ 'active' if request.endpoint=='about' else '' }}">ℹ️<span>About</span></a>
+  <a href="{{ url_for('account') if me else url_for('login') }}" class="{{ 'active' if request.endpoint in ['account','login','register'] else '' }}">👤<span>{{ me.name.split(' ')[0] if me else 'Login' }}</span></a>
 </nav>
 </body>
 </html>

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Favorites — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">❤️ Meri Favorites</h1>
+<div class="cards">
+{% for it in items %}
+  <a class="card" href="{{ url_for('listing_detail', lid=it['id']) }}">
+    <div class="card-title">{{ it['title'] }}</div>
+    <div class="card-bot"><span class="price">Rs {{ "{:,}".format(it['price']) }}</span><span class="seller">🏪 {{ it['seller'] }}</span></div>
+  </a>
+{% else %}
+  <div class="empty">Koi favorite nahi — listings par 🤍 dabayen.</div>
+{% endfor %}
+</div>
+{% endblock %}

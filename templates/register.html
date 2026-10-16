@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Register — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">📝 Naya Account</h1>
+{% if error %}<div class="notice err">⚠️ {{ error }}</div>{% endif %}
+<form class="form" method="post">
+  <input name="name" placeholder="Aap ka naam / dukaan ka naam" required>
+  <input name="phone" placeholder="Mobile number" inputmode="tel" required>
+  <input name="city" placeholder="Sheher">
+  <input type="password" name="pw" placeholder="Password (kam-az-kam 4 harf)" required>
+  <button type="submit" class="btn">Account Banayen</button>
+</form>
+<p class="muted">Pehle se account hai? <a href="{{ url_for('login', next=request.args.get('next')) }}"><b>Login karen</b></a></p>
+{% endblock %}

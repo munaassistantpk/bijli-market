@@ -9,6 +9,40 @@
 <div class="notice">✅ Aap ki listing lag gayi hai!</div>
 {% endif %}
 
+{% if not cat and not q %}
+<div class="market">
+  <h2>📊 Market Summary</h2>
+  <div class="mstats">
+    <div class="mstat"><b>{{ listings|length }}</b><span>Listings</span></div>
+    <div class="mstat"><b>{{ sellers }}</b><span>Sellers</span></div>
+    <div class="mstat"><b>{{ demands }}</b><span>Demands</span></div>
+  </div>
+  <div class="floors">
+    {% for c in categories if floors.get(c) %}
+    <a class="floor" href="{{ url_for('index', cat=c) }}">
+      <span>{{ c }}</span>
+      <b>Rs {{ "{:,}".format(floors[c]) }}
+        {% if trends[c]=='up' %}<i class="up">▲</i>{% elif trends[c]=='down' %}<i class="down">▼</i>{% elif trends[c]=='flat' %}<i class="flat">━</i>{% else %}<i class="new">•</i>{% endif %}
+      </b>
+    </a>
+    {% endfor %}
+  </div>
+  <div class="legend muted">▲ barh raha · ▼ gir raha · ━ stable · • naya</div>
+</div>
+
+{% if events %}
+<h2 class="sect">📢 Events & News</h2>
+<div class="cards">
+{% for e in events %}
+  <a class="card" href="{{ url_for('events') }}">
+    <div class="card-title">{{ e['title'] }}</div>
+    <div class="muted">{{ e['created'] }}</div>
+  </a>
+{% endfor %}
+</div>
+{% endif %}
+{% endif %}
+
 <div class="chips">
   <a href="{{ url_for('index') }}" class="chip {{ 'on' if not cat else '' }}">Sab</a>
   {% for c in categories %}
@@ -16,7 +50,7 @@
   {% endfor %}
 </div>
 
-<h2 class="sect">{% if cat %}{{ cat }}{% elif q %}"{{ q }}" ke nataij{% else %}Taza Listings{% endif %} ({{ listings|length }})</h2>
+<h2 class="sect">{% if cat %}{{ cat }}{% if floors.get(cat) %} — floor Rs {{ "{:,}".format(floors[cat]) }}{% endif %}{% elif q %}"{{ q }}" ke nataij{% else %}Taza Listings{% endif %} ({{ listings|length }})</h2>
 
 <div class="cards">
 {% for it in listings %}
@@ -25,13 +59,13 @@
       <span class="pill">{{ it['category'] }}</span>
       <span class="city">📍 {{ it['city'] or 'Pakistan' }}</span>
     </div>
-    <div class="card-title">{{ it['title'] }}</div>
+    <div class="card-title">{{ it['title'] }}{% if it['id'] in favs %} ❤️{% endif %}</div>
     {% if it['detail'] %}<div class="card-detail">{{ it['detail'] }}</div>{% endif %}
     <div class="card-bot">
       <span class="price">Rs {{ "{:,}".format(it['price']) }}</span>
-      <span class="wa-btn" onclick="event.preventDefault(); window.open('{{ wa_link(it['phone'], 'Assalam-o-Alaikum! BijliMarket par ' + it['title'] + ' (Rs ' + "{:,}".format(it['price']) + ') dekha. Kya available hai?') }}','_blank')">WhatsApp</span>
+      <span class="chat-btn">💬 Chat</span>
     </div>
-    <div class="seller">🏪 {{ it['seller'] }}</div>
+    <div class="seller">🏪 {{ it['uname'] or it['seller'] }}</div>
   </a>
 {% else %}
   <div class="empty">Koi listing nahi mili. <a href="{{ url_for('sell') }}">Pehli listing lagayen ➕</a></div>

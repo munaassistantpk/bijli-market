@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Chat — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">💬 Meri Chats</h1>
+<div class="cards">
+{% for m in rows %}
+  {% set mine = (m['sender_uid']==uid) %}
+  <a class="card" href="{{ url_for('chat_thread', other_uid=m['other_uid']) }}">
+    <div class="card-title">👤 {{ m['uname'] }}
+      {% if unreads.get(m['other_uid']) %}<span class="badge">{{ unreads[m['other_uid']] }} naye</span>{% endif %}
+    </div>
+    <div class="card-detail">{{ 'Aap: ' if mine else '' }}{{ m['text'][:80] }}</div>
+    <div class="muted">{{ m['created'] }}</div>
+  </a>
+{% else %}
+  <div class="empty">Abhi koi chat nahi. Kisi listing par 💬 dabayen.</div>
+{% endfor %}
+</div>
+{% endblock %}

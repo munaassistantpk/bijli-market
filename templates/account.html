@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Mera Account — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">👤 {{ me['name'] }}</h1>
+<p class="muted">📞 {{ me['phone'] }}{% if me['city'] %} · 📍 {{ me['city'] }}{% endif %}</p>
+<div class="actions">
+  <a class="btn small" href="{{ url_for('favorites') }}">❤️ Meri Favorites</a>
+  <a class="btn small" href="{{ url_for('deals') }}">🤝 Meri Deals</a>
+  <a class="btn small" href="{{ url_for('logout') }}">Logout</a>
+</div>
+
+<h2 class="sect">Meri Listings ({{ my_listings|length }})</h2>
+<div class="cards">
+{% for it in my_listings %}
+  <a class="card" href="{{ url_for('listing_detail', lid=it['id']) }}">
+    <div class="card-title">{{ it['title'] }}</div>
+    <div class="card-bot"><span class="price">Rs {{ "{:,}".format(it['price']) }}</span><span class="muted">{{ it['created'] }}</span></div>
+  </a>
+{% else %}
+  <div class="empty">Abhi koi listing nahi. <a href="{{ url_for('sell') }}">Lagayen ➕</a></div>
+{% endfor %}
+</div>
+
+<h2 class="sect">Meri Bids ({{ my_bids|length }})</h2>
+<div class="cards">
+{% for b in my_bids %}
+  <div class="card">
+    <div class="card-title">{{ b['product'] }}</div>
+    <div class="card-bot"><span class="price">Rs {{ "{:,}".format(b['price']) }}</span><span class="muted">{{ b['created'] }}</span></div>
+  </div>
+{% else %}
+  <div class="empty">Abhi koi bid nahi lagayi.</div>
+{% endfor %}
+</div>
+{% endblock %}

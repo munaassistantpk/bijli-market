@@ -7,11 +7,32 @@
   <h1>{{ item['title'] }}</h1>
   {% if item['detail'] %}<p class="spec">{{ item['detail'] }}</p>{% endif %}
   <div class="bigprice">Rs {{ "{:,}".format(item['price']) }}</div>
-  <div class="sellerbox">
-    <div>🏪 <b>{{ item['seller'] }}</b></div>
-    <div>📍 {{ item['city'] or 'Pakistan' }} &nbsp; 📞 {{ item['phone'] }}</div>
+  {% if floor and ncat > 1 %}
+  <div class="ratebox">
+    📊 Is category ({{ ncat }} listings) me <b>sab se kam: Rs {{ "{:,}".format(floor) }}</b>
+    {% if item['price'] == floor %}<span class="best">— Yeh sab se sasti hai! ✅</span>{% endif %}
   </div>
-  <a class="wa-big" href="{{ wa }}" target="_blank">💬 WhatsApp par Rabta Karen</a>
+  {% endif %}
+  <div class="sellerbox">
+    <div>🏪 <b>{{ item['uname'] or item['seller'] }}</b></div>
+    <div>📍 {{ item['city'] or 'Pakistan' }}</div>
+  </div>
+  <div class="actions">
+    <a class="btn-chat" href="{{ url_for('chat_start', lid=item['id']) }}">💬 Seller se Chat</a>
+    <form action="{{ url_for('favorite', lid=item['id']) }}" method="post">
+      <button class="btn-fav">{{ '❤️ Saved' if is_fav else '🤍 Save' }}</button>
+    </form>
+  </div>
+  {% if me and item['seller_uid'] != me['id'] %}
+  <form class="dealform" action="{{ url_for('deal_propose', lid=item['id']) }}" method="post">
+    <b>🤝 Deal offer karen:</b>
+    <div class="row2">
+      <input name="price" placeholder="Aap ki offer (Rs)" inputmode="numeric">
+      <button class="btn small" type="submit">Offer Bhejen</button>
+    </div>
+    <div class="muted">Paisa abhi move nahi hoga — sirf offer record hogi.</div>
+  </form>
+  {% endif %}
 </div>
 
 <h2 class="sect">Milti-julti Listings</h2>

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ u['name'] }} — Seller Profile{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← Wapas</a>
+<div class="profile">
+  <div class="phead">
+    <div class="avatar">{{ u['name'][0] }}</div>
+    <div>
+      <h1>{{ u['name'] }} {% if st.verified %}<span class="vbadge">✓ Verified</span>{% endif %}</h1>
+      <div class="muted">📍 {{ u['city'] or 'Pakistan' }} · {{ u['created'][:10] }} se member</div>
+      <div class="prating"><span class="stars">{{ stars(st.avg) }}</span> <b>{{ st.avg }}</b> ({{ st.count }} reviews)</div>
+    </div>
+  </div>
+  {% if u['bio'] %}<p class="pbio">{{ u['bio'] }}</p>{% endif %}
+  {% if me and me['id'] != u['id'] %}
+  <div class="actions"><a class="btn-chat" href="{{ url_for('chat_thread', other_uid=u['id']) }}">💬 Chat karen</a></div>
+  {% endif %}
+</div>
+
+<h2 class="sect">In ki Listings ({{ listings|length }})</h2>
+<div class="cards">
+{% for it in listings %}
+  <a class="card" href="{{ url_for('listing_detail', lid=it['id']) }}">
+    <div class="card-title">{{ it['title'] }}</div>
+    <div class="card-bot"><span class="price">Rs {{ "{:,}".format(it['price']) }}</span><span class="pill">{{ it['category'] }}</span></div>
+  </a>
+{% else %}
+  <div class="empty">Abhi koi listing nahi.</div>
+{% endfor %}
+</div>
+
+<h2 class="sect">Reviews ({{ revs|length }})</h2>
+<div class="cards">
+{% for r in revs %}
+  <div class="card">
+    <div class="card-title"><span class="stars">{{ stars(r['rating']) }}</span> {{ r['rname'] }}</div>
+    {% if r['comment'] %}<div class="card-detail">{{ r['comment'] }}</div>{% endif %}
+    <div class="muted">{{ r['created'] }}</div>
+  </div>
+{% else %}
+  <div class="empty">Abhi koi review nahi.</div>
+{% endfor %}
+</div>
+{% endblock %}

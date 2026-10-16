@@ -28,6 +28,12 @@
     {% endfor %}
   </div>
   <div class="legend muted">▲ barh raha · ▼ gir raha · ━ stable · • naya</div>
+  <div class="mood">
+    <div class="mood-top"><span>🧭 Market Mood</span><b>{{ mood.score }}/100</b></div>
+    <div class="mood-bar"><div class="mood-fill" style="width:{{ mood.score }}%"></div></div>
+    <div class="muted">{{ mood.label }}</div>
+  </div>
+  <div class="actions" style="margin-top:10px"><a class="btn small" href="{{ url_for('brands') }}">🏷️ Brands dekhen</a></div>
 </div>
 
 {% if events %}

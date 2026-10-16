@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Brands — BijliMarket{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← Wapas</a>
+<h1 class="pagetitle">🏷️ Brands ({{ brands|length }})</h1>
+<div class="cards">
+{% for b, e in brands %}
+  <a class="card" href="{{ url_for('index', q=b) }}">
+    <div class="card-title">{{ b }}</div>
+    <div class="card-bot">
+      <span class="price">{{ e['count'] }} listings</span>
+      <span class="muted">floor Rs {{ "{:,}".format(e['floor']) }}</span>
+    </div>
+    <div class="muted">{{ e['cats']|join(' · ') }}</div>
+  </a>
+{% else %}
+  <div class="empty">Abhi koi brand nahi.</div>
+{% endfor %}
+</div>
+{% endblock %}

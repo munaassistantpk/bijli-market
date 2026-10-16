@@ -32,6 +32,24 @@
       <a class="btn small" href="{{ url_for('chat_thread', other_uid=d['buyer_uid']) }}">💬 Chat</a>
       {% endif %}
     </div>
+    {% if d['status']=='completed' and not d['myrev'] %}
+    <form class="revform" action="{{ url_for('deal_review', did=d['id']) }}" method="post">
+      <b>⭐ Review den:</b>
+      <div class="row2">
+        <select name="rating">
+          <option value="5">★★★★★ (5)</option>
+          <option value="4">★★★★ (4)</option>
+          <option value="3">★★★ (3)</option>
+          <option value="2">★★ (2)</option>
+          <option value="1">★ (1)</option>
+        </select>
+        <input name="comment" placeholder="Tajurba likhen (optional)" maxlength="300">
+        <button class="btn small" type="submit">Bhejen</button>
+      </div>
+    </form>
+    {% elif d['status']=='completed' %}
+    <div class="muted">✅ Review de diya hai.</div>
+    {% endif %}
   </div>
 {% else %}
   <div class="empty">Abhi koi deal nahi.</div>

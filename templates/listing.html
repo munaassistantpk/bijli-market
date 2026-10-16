@@ -14,7 +14,10 @@
   </div>
   {% endif %}
   <div class="sellerbox">
-    <div>🏪 <b>{{ item['uname'] or item['seller'] }}</b></div>
+    <div>🏪 <b><a href="{{ url_for('seller_profile', uid=item['seller_uid']) if item['seller_uid'] else '#' }}">{{ item['uname'] or item['seller'] }}</a></b>
+      {% if sstats %}{% if sstats.verified %}<span class="vbadge">✓</span>{% endif %}
+      <span class="stars">{{ stars(sstats.avg) }}</span> <span class="muted">{{ sstats.avg }} ({{ sstats.count }})</span>{% endif %}
+    </div>
     <div>📍 {{ item['city'] or 'Pakistan' }}</div>
   </div>
   <div class="actions">

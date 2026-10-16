@@ -3,6 +3,12 @@
 {% block content %}
 <h1 class="pagetitle">👤 {{ me['name'] }}</h1>
 <p class="muted">📞 {{ me['phone'] }}{% if me['city'] %} · 📍 {{ me['city'] }}{% endif %}</p>
+<p><span class="stars">{{ stars(st.avg) }}</span> <b>{{ st.avg }}</b> ({{ st.count }} reviews){% if st.verified %} <span class="vbadge">✓ Verified</span>{% endif %}</p>
+<form class="bioform" method="post">
+  <input name="city" placeholder="Shehar" value="{{ me['city'] or '' }}" maxlength="60">
+  <input name="bio" placeholder="Apne bare me likhen (dukan ka taaruf)…" value="{{ me['bio'] or '' }}" maxlength="300">
+  <button class="btn small" type="submit">Save</button>
+</form>
 <div class="actions">
   <a class="btn small" href="{{ url_for('favorites') }}">❤️ Meri Favorites</a>
   <a class="btn small" href="{{ url_for('deals') }}">🤝 Meri Deals</a>

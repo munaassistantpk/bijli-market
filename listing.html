@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ item['title'] }} — BijliMarket{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← Wapas</a>
+<div class="detail">
+  <span class="pill">{{ item['category'] }}</span>
+  <h1>{{ item['title'] }}</h1>
+  {% if item['detail'] %}<p class="spec">{{ item['detail'] }}</p>{% endif %}
+  <div class="bigprice">Rs {{ "{:,}".format(item['price']) }}</div>
+  <div class="sellerbox">
+    <div>🏪 <b>{{ item['seller'] }}</b></div>
+    <div>📍 {{ item['city'] or 'Pakistan' }} &nbsp; 📞 {{ item['phone'] }}</div>
+  </div>
+  <a class="wa-big" href="{{ wa }}" target="_blank">💬 WhatsApp par Rabta Karen</a>
+</div>
+
+<h2 class="sect">Milti-julti Listings</h2>
+<div class="cards">
+{% for it in related %}
+  <a class="card" href="{{ url_for('listing_detail', lid=it['id']) }}">
+    <div class="card-title">{{ it['title'] }}</div>
+    <div class="card-bot">
+      <span class="price">Rs {{ "{:,}".format(it['price']) }}</span>
+      <span class="seller">🏪 {{ it['seller'] }}</span>
+    </div>
+  </a>
+{% endfor %}
+</div>
+{% endblock %}

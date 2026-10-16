@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">🛠️ Admin Panel</h1>
+<p><a class="btn small" href="{{ url_for('admin_logout') }}">Logout</a></p>
+
+<h2 class="sect">Listings ({{ listings|length }})</h2>
+<div class="adminlist">
+{% for it in listings %}
+  <div class="arow">
+    <div><b>{{ it['title'] }}</b><br><span class="muted">{{ it['category'] }} · Rs {{ "{:,}".format(it['price']) }} · {{ it['seller'] }} · {{ it['city'] }}</span></div>
+    <form action="{{ url_for('admin_delete_listing', lid=it['id']) }}" method="post" onsubmit="return confirm('Delete karen?')">
+      <button class="del">🗑</button>
+    </form>
+  </div>
+{% else %}
+  <div class="empty">Koi listing nahi.</div>
+{% endfor %}
+</div>
+
+<h2 class="sect">Demands ({{ reqs|length }})</h2>
+<div class="adminlist">
+{% for r in reqs %}
+  <div class="arow">
+    <div><b>{{ r['product'] }}</b><br><span class="muted">{{ r['name'] }} · {{ r['phone'] }} · {{ r['city'] }} · {{ r['created'] }}</span></div>
+    <form action="{{ url_for('admin_delete_req', rid=r['id']) }}" method="post" onsubmit="return confirm('Delete karen?')">
+      <button class="del">🗑</button>
+    </form>
+  </div>
+{% else %}
+  <div class="empty">Koi demand nahi.</div>
+{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}BijliMarket — Pakistan ka Electrical Marketplace{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <a href="{{ url_for('index') }}" class="logo">⚡ BijliMarket</a>
+  <span class="tagline">Electrical ka apna bazar</span>
+</header>
+
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+
+<nav class="bottomnav">
+  <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint=='index' else '' }}">🏠<span>Home</span></a>
+  <a href="{{ url_for('requirements') }}" class="{{ 'active' if request.endpoint=='requirements' else '' }}">📋<span>Demand</span></a>
+  <a href="{{ url_for('sell') }}" class="{{ 'active' if request.endpoint=='sell' else '' }}">➕<span>Becho</span></a>
+  <a href="{{ url_for('about') }}" class="{{ 'active' if request.endpoint=='about' else '' }}">ℹ️<span>About</span></a>
+</nav>
+</body>
+</html>

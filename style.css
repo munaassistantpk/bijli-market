@@ -1,0 +1,51 @@
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:#f4f6fb;color:#1a1a2e;padding-bottom:76px}
+a{text-decoration:none;color:inherit}
+.topbar{background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:10}
+.logo{font-size:20px;font-weight:800}
+.tagline{font-size:12px;opacity:.75;margin-left:8px}
+.wrap{max-width:640px;margin:0 auto;padding:12px 12px 20px}
+.searchbar{display:flex;gap:8px;margin-bottom:12px}
+.searchbar input{flex:1;padding:12px 14px;border:1px solid #dfe3ee;border-radius:12px;font-size:15px}
+.searchbar button{padding:0 16px;border:none;border-radius:12px;background:#f5a623;font-size:18px;cursor:pointer}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:none}
+.chip{white-space:nowrap;padding:8px 14px;background:#fff;border:1px solid #dfe3ee;border-radius:20px;font-size:13px;color:#333}
+.chip.on{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
+.sect{font-size:16px;margin:14px 2px 10px}
+.cards{display:grid;gap:10px}
+.card{background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:block}
+.card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.pill{background:#e8f0fe;color:#1a56db;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px}
+.city{font-size:12px;color:#777}
+.card-title{font-size:15px;font-weight:700;margin-bottom:4px}
+.card-detail{font-size:13px;color:#555;margin-bottom:6px}
+.card-bot{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.price{font-size:17px;font-weight:800;color:#0b7a3e}
+.wa-btn{background:#25d366;color:#fff;font-size:13px;font-weight:700;padding:8px 14px;border-radius:10px}
+.seller{font-size:12px;color:#777;margin-top:8px}
+.empty{background:#fff;border-radius:14px;padding:24px;text-align:center;color:#777}
+.empty a{color:#1a56db;font-weight:700}
+.notice{background:#e6f9ed;border:1px solid #25d366;color:#0b7a3e;padding:12px;border-radius:12px;margin-bottom:12px;font-size:14px}
+.notice.err{background:#fdecec;border-color:#e05252;color:#b02a2a}
+.back{display:inline-block;margin-bottom:10px;color:#1a56db;font-size:14px}
+.detail{background:#fff;border-radius:14px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.detail h1{font-size:20px;margin:8px 0}
+.spec{color:#555;font-size:14px;margin-bottom:12px}
+.bigprice{font-size:26px;font-weight:800;color:#0b7a3e;margin:10px 0}
+.sellerbox{background:#f4f6fb;border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:14px;line-height:1.7}
+.wa-big{display:block;text-align:center;background:#25d366;color:#fff;font-weight:800;font-size:16px;padding:14px;border-radius:12px}
+.pagetitle{font-size:20px;margin:6px 2px 8px}
+.muted{color:#777;font-size:13px;margin-bottom:12px}
+.form{background:#fff;border-radius:14px;padding:16px;display:grid;gap:10px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.form h3{font-size:15px}
+.form input,.form select{padding:12px;border:1px solid #dfe3ee;border-radius:10px;font-size:14px;width:100%}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;display:inline-block}
+.btn.small{padding:8px 16px;font-size:13px}
+.adminlist{display:grid;gap:8px}
+.arow{background:#fff;border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.06);font-size:14px}
+.del{background:#fdecec;border:none;font-size:18px;padding:8px 10px;border-radius:10px;cursor:pointer}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e5e8f0;display:flex;z-index:10}
+.bottomnav a{flex:1;text-align:center;padding:10px 0 8px;font-size:20px;color:#777;display:flex;flex-direction:column;gap:2px}
+.bottomnav a span{font-size:11px}
+.bottomnav a.active{color:#1a1a2e;font-weight:700}

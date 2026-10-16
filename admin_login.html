@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Admin — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">🔐 Admin Login</h1>
+{% if error %}<div class="notice err">⚠️ Ghalat password.</div>{% endif %}
+<form class="form" action="{{ url_for('admin') }}" method="post">
+  <input type="password" name="password" placeholder="Admin password" required>
+  <button type="submit" class="btn">Login</button>
+</form>
+{% endblock %}

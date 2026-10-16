@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Listing Lagayen — BijliMarket{% endblock %}
+{% block content %}
+<h1 class="pagetitle">➕ Apni Product Bechen</h1>
+<p class="muted">Listing fori live ho jayegi — koi fee nahi.</p>
+{% if error %}
+<div class="notice err">⚠️ Sab zaroori khane pur karen (qeemat sirf number me).</div>
+{% endif %}
+<form class="form" action="{{ url_for('sell') }}" method="post">
+  <input name="title" placeholder="Product ka naam (misal: LED Bulb 12W Ostric)" required>
+  <select name="category" required>
+    <option value="">Category chunen…</option>
+    {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+  </select>
+  <div class="row2">
+    <input name="price" placeholder="Qeemat (Rs, sirf number)" inputmode="numeric" required>
+    <input name="city" placeholder="Sheher">
+  </div>
+  <input name="detail" placeholder="Tafseel (misal: 12W, E27, 6500K, 1 saal warranty)">
+  <div class="row2">
+    <input name="seller" placeholder="Dukaan/Seller ka naam" required>
+    <input name="phone" placeholder="WhatsApp number" required>
+  </div>
+  <button type="submit" class="btn">Listing Lagayen</button>
+</form>
+{% endblock %}
